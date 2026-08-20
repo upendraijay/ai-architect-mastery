@@ -10,3 +10,4 @@
 | 2026-08-11 | 206 | Reverse Linked List | Linked List / Pointer Reversal | O(n) | O(1) |
 | 2026-08-14 | 155 | Min Stack | Stack / Auxiliary Stack | O(1) | O(n) |
 | 2026-08-14 | 232 | Implement Queue using Stacks | Stack / Two-Stack Queue | O(1) amortized | O(n) |
+| 2026-08-20 | 739 | Daily Temperatures | Stack / Monotonic Decreasing Stack | O(n) | O(n) |

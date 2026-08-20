@@ -1,12 +1,10 @@
 # Factory Pattern
 
-This is the better story because it first shows **good OCP/abstraction**, and then shows the **separate problem of object creation**.
+> **Factory solves the problem of having duplicated or scattered object-creation logic by moving object creation to one place.**
 
 ---
 
 ## 1. Start with an interface
-
-We have different ways of sending notifications.
 
 ```python
 from abc import ABC, abstractmethod
@@ -36,11 +34,25 @@ class SMSNotification(Notification):
 
 ---
 
-## 2. First client module
+## 2. Suppose we have `PaymentService`
 
-Suppose we have `OrderService`.
+After payment succeeds, it sends a payment-success notification.
 
-It only depends on the interface:
+```python
+class PaymentService:
+
+    def __init__(self, notification: Notification):
+        self.notification = notification
+
+    def make_payment(self):
+        # payment logic
+        self.notification.send("Payment successful")
+```
+---
+
+## 3. Now suppose we have `OrderService`
+
+After order confirmation, it sends a notification.
 
 ```python
 class OrderService:
@@ -53,146 +65,19 @@ class OrderService:
         self.notification.send("Order placed successfully")
 ```
 
-We can create it like this:
-
-```python
-notification = EmailNotification()
-
-order_service = OrderService(notification)
-order_service.place_order()
-```
-
-This is already good.
-
-`OrderService` doesn't know whether the notification is email or SMS.
-
-It only knows:
-
-```text
-I have a Notification.
-I can call send().
-```
-
 ---
 
-## 3. Another module needs notifications
+## 4. But now notice the creation problem
 
-Now suppose we have `PaymentService`.
-
-It also needs to send notifications:
-
-```python
-class PaymentService:
-
-    def __init__(self, notification: Notification):
-        self.notification = notification
-
-    def make_payment(self):
-        # payment logic
-        self.notification.send("Payment successful")
-```
-
-We now have two modules:
-
-```text
-OrderService
-      ↓
-Notification
-
-PaymentService
-      ↓
-Notification
-```
-
-So far, everything is good.
-
----
-
-## 4. Tomorrow we add Push Notification
-
-Business asks:
-
-> We also want to support Push Notifications.
-
-We create another implementation:
-
-```python
-class PushNotification(Notification):
-
-    def send(self, message: str):
-        print(f"Sending PUSH: {message}")
-```
-
-Notice something important:
-
-### Do we need to change `OrderService`?
-
-**No.**
-
-```python
-class OrderService:
-
-    def __init__(self, notification: Notification):
-        self.notification = notification
-
-    def place_order(self):
-        self.notification.send("Order placed successfully")
-```
-
-### Do we need to change `PaymentService`?
-
-**No.**
-
-```python
-class PaymentService:
-
-    def __init__(self, notification: Notification):
-        self.notification = notification
-
-    def make_payment(self):
-        self.notification.send("Payment successful")
-```
-
-This is **OCP + Dependency Injection working correctly**.
-
-We can simply inject the new implementation:
-
-```python
-notification = PushNotification()
-
-order_service = OrderService(notification)
-payment_service = PaymentService(notification)
-```
-
-So far, **we don't need a Factory.**
-
----
-
-## 5. But now notice the creation problem
-
-Imagine we don't want the caller to directly decide:
-
-```python
-EmailNotification()
-SMSNotification()
-PushNotification()
-```
-
-Instead, the notification type comes from configuration:
+The notification provider comes from configuration:
 
 ```python
 provider = config["notification_provider"]
 ```
 
-For example:
+Both `OrderService` and `PaymentService` need to decide which concrete notification object to create.
 
-```text
-notification_provider = "email"
-```
-
-Now the caller has to create the correct object.
-
-We might write:
+### Order module
 
 ```python
 if provider == "email":
@@ -203,60 +88,36 @@ elif provider == "sms":
 
 elif provider == "push":
     notification = PushNotification()
-```
-
-And then:
-
-```python
-order_service = OrderService(notification)
-```
-
-But `PaymentService` needs the same thing.
-
-So we end up with:
-
-```python
-# Order module
-
-if provider == "email":
-    notification = EmailNotification()
-elif provider == "sms":
-    notification = SMSNotification()
-elif provider == "push":
-    notification = PushNotification()
 
 order_service = OrderService(notification)
 ```
 
-And:
+### Payment module
 
 ```python
-# Payment module
-
 if provider == "email":
     notification = EmailNotification()
+
 elif provider == "sms":
     notification = SMSNotification()
+
 elif provider == "push":
     notification = PushNotification()
 
 payment_service = PaymentService(notification)
 ```
 
-### Now we have a problem.
+### Now we have the problem
 
-Both caller modules know:
+Both caller modules contain the **same object-creation logic**.
 
-* EmailNotification
-* SMSNotification
-* PushNotification
-* How to decide which one to create
+The business services are clean, but the **creation logic is duplicated across the caller modules**.
 
-The **business services are still clean**, but the **creation logic is duplicated in the caller modules**.
+This is the problem Factory solves.
 
 ---
 
-## 6. Now the Factory becomes useful
+## 5. Now the Factory becomes useful
 
 We move creation into one place:
 
@@ -300,45 +161,6 @@ payment_service.make_payment()
 
 ---
 
-## 7. Now add another notification type
-
-Tomorrow:
-
-```python
-class WhatsAppNotification(Notification):
-
-    def send(self, message: str):
-        print(f"Sending WHATSAPP: {message}")
-```
-
-Before Factory:
-
-```text
-Order module       → change
-Payment module     → change
-Other modules      → change
-```
-
-Every caller that creates notifications has to know about `WhatsAppNotification`.
-
-With Factory:
-
-```text
-NotificationFactory → change
-Order module         → NO change
-Payment module       → NO change
-Other modules        → NO change
-```
-
-Just add:
-
-```python
-elif provider == "whatsapp":
-    return WhatsAppNotification()
-```
-
----
-
 ## The complete story
 
 This is the important part to remember for your interview:
@@ -361,27 +183,5 @@ This is the important part to remember for your interview:
               ┌──────────┴──────────┐
               │                     │
         OrderService          PaymentService
-          (Client)               (Client)
+          (Caller)                (Caller)
 ```
-
-### What did OCP solve?
-
-The interface solved the **usage/dependency problem**:
-
-> `OrderService` and `PaymentService` don't depend on concrete notification classes.
-
-### What did Factory solve?
-
-The Factory solved the **creation problem**:
-
-> Caller modules don't need to know which concrete notification class to create.
-
-So don't think:
-
-> **"OCP requires Factory."**
-
-Think:
-
-> **OCP solves how clients depend on objects. Factory solves how objects are created.**
-
-That's the distinction you want to carry into your LLD interviews.

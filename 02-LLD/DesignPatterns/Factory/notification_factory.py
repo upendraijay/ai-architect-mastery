@@ -42,20 +42,20 @@ class PushNotification(Notification):
 
 
 class NotificationFactory:
-    """Owns the decision of which concrete `Notification` to create."""
-
-    _providers = {
-        "email": EmailNotification,
-        "sms": SMSNotification,
-        "push": PushNotification,
-    }
 
     @staticmethod
     def create(provider: str) -> Notification:
-        notification_class = NotificationFactory._providers.get(provider)
-        if notification_class is None:
-            raise ValueError(f"Unknown provider: {provider}")
-        return notification_class()
+
+        if provider == "email":
+            return EmailNotification()
+
+        elif provider == "sms":
+            return SMSNotification()
+
+        elif provider == "push":
+            return PushNotification()
+
+        raise ValueError(f"Unknown provider: {provider}")
 
 
 # --- clients --------------------------------------------------------------
@@ -63,6 +63,7 @@ class NotificationFactory:
 
 
 class OrderService:
+
     def __init__(self, notification: Notification):
         self.notification = notification
 
@@ -72,6 +73,7 @@ class OrderService:
 
 
 class PaymentService:
+
     def __init__(self, notification: Notification):
         self.notification = notification
 
@@ -84,6 +86,7 @@ class PaymentService:
 
 
 if __name__ == "__main__":
+
     config = {"notification_provider": "email"}
     provider = config["notification_provider"]
 
